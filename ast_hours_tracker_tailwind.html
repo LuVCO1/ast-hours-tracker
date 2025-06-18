@@ -1,0 +1,152 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AST Extra Hours Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-6">
+    <div class="max-w-screen-xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4">⚙️ After Sales Technician – Weekly Extra Hours Tracker</h1>
+        <button onclick="addTechnician()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">+ Add AST</button>
+        <div id="technicians" class="mt-6 space-y-8"></div>
+    </div>
+
+    <script>
+        let techCount = 0;
+
+        const RATES = {
+            1: { normal: 18.53, special: 19.42 },
+            2: { normal: 17.36, special: 18.20 },
+            3: { normal: 16.03, special: 16.78 },
+            4: { normal: 15.40, special: 16.12 },
+            5: { normal: 14.84, special: 15.53 },
+            6: { normal: 14.39, special: 15.08 },
+            7: { normal: 14.24, special: 14.90 }
+        };
+
+        const DIETS = {
+            none: 0,
+            half: 16.79,
+            full: 33.59,
+            full_int: 48.08,
+            overnight: 53.34,
+            overnight_int: 91.35
+        };
+
+        const nationalPlaces = [
+            "spain", "portugal", "andorra", "gibraltar",
+            "madrid", "barcelona", "lisbon", "porto", "valencia", "sevilla", "zaragoza", "bilbao"
+        ];
+
+        function getScope(location) {
+            const loc = location.trim().toLowerCase();
+            return nationalPlaces.some(p => loc.includes(p)) ? "National" : "International";
+        }
+
+        function addTechnician() {
+            techCount++;
+            const container = document.createElement("div");
+            container.className = "bg-white shadow-md rounded p-4";
+            container.id = `tech_${techCount}`;
+            container.innerHTML = `
+                <h2 class="text-xl font-semibold mb-2">👷 AST #${techCount}</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block">Name</label>
+                        <input type="text" id="name_${techCount}" class="w-full border p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block">Group (1–7)</label>
+                        <select id="group_${techCount}" class="w-full border p-2 rounded">
+                            ${[1,2,3,4,5,6,7].map(g => `<option value="${g}">Group ${g}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <button onclick="addRow(${techCount})" class="mt-4 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition">+ Add Day</button>
+                <div class="overflow-x-auto mt-4">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="px-2 py-1">📅 Date</th>
+                                <th class="px-2 py-1">📍 Location</th>
+                                <th class="px-2 py-1">Scope</th>
+                                <th class="px-2 py-1">☀️ Day Hours</th>
+                                <th class="px-2 py-1">🌙 Night/Wknd</th>
+                                <th class="px-2 py-1">🍽️ Diet</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table_${techCount}"></tbody>
+                    </table>
+                </div>
+                <button onclick="calculate(${techCount})" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">Calculate Total</button>
+                <div class="result mt-3 text-sm bg-blue-50 p-3 rounded border border-blue-200" id="result_${techCount}"></div>
+            `;
+            document.getElementById("technicians").appendChild(container);
+        }
+
+        function addRow(id) {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td><input type="date" class="date w-full border rounded px-1 py-0.5"></td>
+                <td><input type="text" class="location w-full border rounded px-1 py-0.5" oninput="updateScope(this)"></td>
+                <td class="scope">National</td>
+                <td><input type="number" min="0" step="0.5" class="day w-full border rounded px-1 py-0.5"></td>
+                <td><input type="number" min="0" step="0.5" class="night w-full border rounded px-1 py-0.5"></td>
+                <td>
+                    <select class="diet w-full border rounded px-1 py-0.5">
+                        <option value="none">None</option>
+                        <option value="half">Half (16.79 €)</option>
+                        <option value="full">Full (33.59 €)</option>
+                        <option value="full_int">Full Intl. (48.08 €)</option>
+                        <option value="overnight">Overnight (53.34 €)</option>
+                        <option value="overnight_int">Overnight Intl. (91.35 €)</option>
+                    </select>
+                </td>
+            `;
+            document.getElementById(`table_${id}`).appendChild(row);
+        }
+
+        function updateScope(input) {
+            const scopeCell = input.parentElement.nextElementSibling;
+            scopeCell.textContent = getScope(input.value);
+        }
+
+        function calculate(id) {
+            const group = parseInt(document.getElementById(`group_${id}`).value);
+            const rate = RATES[group];
+
+            let totalDay = 0;
+            let totalNight = 0;
+            let totalDiets = 0;
+
+            document.querySelectorAll(`#table_${id} tr`).forEach(row => {
+                const day = parseFloat(row.querySelector(".day").value) || 0;
+                const night = parseFloat(row.querySelector(".night").value) || 0;
+                const diet = row.querySelector(".diet").value;
+                totalDay += day;
+                totalNight += night;
+                totalDiets += DIETS[diet];
+            });
+
+            const totalDayAmt = totalDay * rate.normal;
+            const totalNightAmt = totalNight * rate.special;
+            const total = totalDayAmt + totalNightAmt + totalDiets;
+
+            document.getElementById(`result_${id}`).innerHTML = `
+                <strong>Summary:</strong><br>
+                ☀️ Day hours: ${totalDay} × ${rate.normal.toFixed(2)} € = ${totalDayAmt.toFixed(2)} €<br>
+                🌙 Night/Weekend hours: ${totalNight} × ${rate.special.toFixed(2)} € = ${totalNightAmt.toFixed(2)} €<br>
+                🍽️ Diets: ${totalDiets.toFixed(2)} €<br>
+                <strong>Total: ${total.toFixed(2)} €</strong>
+            `;
+        }
+    </script>
+</body>
+</html>
